@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Auntie-Nae: A P2P Library</title>
+	</head>
+	<script type="module">
+		import Antennae from './src/antennae.mjs';
+
+		const btn = document.createElement('button');
+		btn.innerText = "<Waiting>";
+		btn.disabled = true;
+		document.body.insertAdjacentElement('beforeend', btn);
+		function get_user_gesture(msg) {
+			btn.innerText = msg;
+			btn.disabled = false;
+			return new Promise(resolve => btn.onclick = resolve).finally(() => {
+				btn.innerText = "<Waiting>";
+				btn.disabled = true;
+			});
+		}
+
+		navigator.serviceWorker.register("./sw.js");
+
+		const auntie = new Antennae();
+		for (const ev of Antennae.ALL_EVENTS) {
+			auntie.addEventListener(ev, console.log.bind(null, ev));
+		}
+
+		auntie.addEventListener('public-key', async ({ detail: applicationServerKey }) => {
+			const registration = await navigator.serviceWorker.ready;
+
+			let sub = await registration.pushManager.getSubscription();
+			if (sub !== null) {
+				// Make sure that the the subscription we have matches the correct applicationServerKey
+				const prev_ask = new Uint8Array(sub.options.applicationServerKey);
+				const cur_ask = new Uint8Array(applicationServerKey);
+				if (!prev_ask.every((v, i) => cur_ask[i] === v)) {
+					debugger;
+					sub.unsubscribe();
+					sub = null;
+				}
+			}
+			if (sub === null) {
+				await get_user_gesture("Allow Notifications.");
+				
+				sub = await registration.pushManager.subscribe({
+					userVisibleOnly: true,
+					applicationServerKey
+				});
+			}
+
+			// Probably don't need to set the pushinfo every single time, but it also doesn't hurt - Auntie will check if the push info is the same anyway.
+			const pushinfo = sub.toJSON();
+			pushinfo.subscriber = "no-reply@example.com";
+			auntie.set_pushinfo(sub.toJSON());
+		});
+	</script>
+	<script type="module" src="src/compression-tests.mjs"></script>
+</html>

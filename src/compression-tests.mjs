@@ -1,4 +1,4 @@
-import { compress, decompress } from "./compress.mjs";
+import { compress, decompress, BitBuffer } from "./compress.mjs";
 
 const encoder = new TextEncoder();
 
@@ -57,3 +57,24 @@ test(`evan.brass@pm.me`);
 test('brassevan@gmail.com');
 test('https://Dark.net/EAB:HK/lksdjf');
 test('{"something": "more", like: 5, "json": {}');
+
+function test_bitbuffer(args, test_log) {
+	let buf = new BitBuffer();
+	for (const v of args) {
+		if (typeof v == 'number') {
+			buf.write_byte(v);
+		} else {
+			for (const b of v) {
+				buf.write_bit(b);
+			}
+		}
+	}
+	const log = buf.log();
+	console.assert(log == test_log);
+}
+test_bitbuffer([[1, 0, 0, 1, 0, 1, 1]], '1001011');
+test_bitbuffer([
+	[0, 1],
+	4,
+	[1, 1, 1]
+], '01000001 00111');

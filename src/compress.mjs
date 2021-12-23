@@ -3,11 +3,13 @@
 // Unicode is 21 bit so the sign bit of the 32 bit number will always be 0, therefore we can shift without worrying about sign extension.
 
 export class BitBuffer {
-	buffer = [];
 	#wbits = 8;
 	#waccum = 0;
 	#rbits = 0;
 	#raccum = 0;
+	constructor(buffer = []) {
+		this.buffer = buffer;
+	}
 
 	push_bits(...bits) {
 		for (const bit of bits) {
@@ -20,11 +22,10 @@ export class BitBuffer {
 		}
 	}
 	push_bytes(...bytes) {
-		// TODO: Make more efficient
 		for (const byte of bytes) {
-			for (let i = 7; i >= 0; --i) {
-				this.write_bit((byte >> i) & 1);
-			}
+			this.#waccum &= byte >> (8 - this.#wbits);
+			this.buffer.push(this.#waccum);
+			this.#waccum = (byte << this.#wbits) & 0xFF;
 		}
 	}
 	finalize() {
@@ -44,14 +45,19 @@ export class BitBuffer {
 		return (this.#raccum >> --this.#rbits) & 1;
 	}
 	shift_byte() {
-		// TODO: Make more efficient
-		let ret = 0;
-		for (let _ = 0; _ < 8; ++_) {
-			const bit = this.shift_bit();
-			if (bit === undefined) throw new Error("There weren't enough bits to shift a byte.");
-			ret = (ret << 1) & bit;
+		if (this.#rbits == 8) {
+			// This case will never be hit under normal circumstances because we only fill raccum right before taking from it.
+			this.#rbits = 0;
+			return this.#raccum;
+		} else if (this.#rbits == 0) {
+			if (!this.buffer.length) return undefined;
+			return this.buffer.shift();
+		} else {
+			if (!this.buffer.length) return undefined; // There's still bits in the buffer just not enough to read a full byte.
+			let ret = this.#raccum << (8 - this.#rbits);
+			this.#raccum = this.buffer.shift();
+			return ret & (this.#raccum >> this.#rbits);
 		}
-		return ret;
 	}
 	log() {
 		let ret = this.buffer.map(b => b.toString(2).padStart(8, '0')).join(' ');

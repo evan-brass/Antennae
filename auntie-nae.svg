@@ -7,7 +7,7 @@
    viewBox="0 0 92.604164 92.60417"
    version="1.1"
    id="svg5"
-   inkscape:version="1.1 (c4e8f9ed74, 2021-05-24)"
+   inkscape:version="1.1.1 (3bf5ae0d25, 2021-09-20, custom)"
    sodipodi:docname="auntie-nae.svg"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
@@ -19,7 +19,7 @@
      bordercolor="#666666"
      borderopacity="1.0"
      inkscape:pageshadow="2"
-     inkscape:pageopacity="0.0"
+     inkscape:pageopacity="1"
      inkscape:pagecheckerboard="0"
      inkscape:document-units="px"
      showgrid="false"
@@ -29,18 +29,22 @@
      fit-margin-bottom="0"
      units="px"
      height="350px"
-     inkscape:zoom="1.5854458"
-     inkscape:cx="116.05569"
-     inkscape:cy="166.19931"
-     inkscape:window-width="1081"
-     inkscape:window-height="1048"
+     inkscape:zoom="1.1210795"
+     inkscape:cx="-137.8136"
+     inkscape:cy="139.5976"
+     inkscape:window-width="1280"
+     inkscape:window-height="1024"
      inkscape:window-x="0"
      inkscape:window-y="0"
      inkscape:window-maximized="1"
-     inkscape:current-layer="layer1" />
+     inkscape:current-layer="svg5" />
   <defs
      id="defs2" />
-  <rect width="100%" height="100%" fill="white" />
+  <rect
+     width="100%"
+     height="100%"
+     fill="white"
+     id="rect4" />
   <g
      inkscape:label="Layer 1"
      inkscape:groupmode="layer"

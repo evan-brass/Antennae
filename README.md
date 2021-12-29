@@ -1,4 +1,6 @@
-![Auntie Nae wears glasses and has black bobbed hair with two antennae sticking out](auntie-nae.svg) If you can portray her better, feel free.
+![Auntie Nae wears glasses and has black bobbed hair with two antennae sticking out](auntie-nae.svg)
+
+If you can portray her better, feel free.
 # Auntie Nae (antennae)
 A library and protocol for peer-to-peer WebRTC signaling using the WebPush Protocol + API.  It enables P2P applications to be built without running a signaling server: the browser vendor's push notification servers are used.  In fact, a dynamic, P2P, webapp can be created with only static hosting giving censorship resistance and ease of use.
 

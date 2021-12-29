@@ -1,3 +1,5 @@
+import { encode_vitter } from "./vitters.mjs";
+
 // JS values are turned into 32bit numbers before a bitwise operation
 // >> is sign preserving
 // Unicode is 21 bit so the sign bit of the 32 bit number will always be 0, therefore we can shift without worrying about sign extension.
@@ -60,14 +62,8 @@ export class BitBuffer {
 		}
 	}
 	log() {
-		let ret = this.buffer.map(b => b.toString(2).padStart(8, '0')).join(' ');
-		if (this.#bits) {
-			if (this.buffer.length) ret += ' ';
-			ret += this.#accum.toString(2).padStart(this.#bits, '0');
-		}
-		return ret;
+		return this.finalize().map(b => b.toString(2).padStart(8, '0')).join(' ');
 	}
-	// TODO: Finalize by somehow outputting the accumulator?
 }
 
 // Functions to encode / decode our big-endian, 3-byte max, variable length unsigned integers.
@@ -210,11 +206,12 @@ export function compress(input) {
 	}
 
 	// TODO: Dynamic huffman coding for the bytes.
-	const weights = Object.create(null);
-	for (const b of bytes) {
-		weights[b] = (weights[b] ?? 0) + 1;
-	}
-	console.log("Weights: ", weights);
+	// const weights = Object.create(null);
+	// for (const b of bytes) {
+	// 	weights[b] = (weights[b] ?? 0) + 1;
+	// }
+	// console.log("Weights: ", weights);
+	console.log(encode_vitter(bytes));
 
 	return Uint8Array.from(bytes);
 }

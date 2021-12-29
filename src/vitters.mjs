@@ -3,9 +3,6 @@
 export function encode_vitter(message) {
 	let output = "";
 
-	const parent = [], rtChild = [], parity = [], block = [], prevBlock = [], nextBlock = [], first = [], last = [];
-	const weight = [];
-
 	const rep = [], alpha = [];
 	let M = 0, R = -1, E = 0, n = 256, Z = 2 * n - 1;
 	for (let i = 1; i <= n; ++i) {
@@ -18,25 +15,35 @@ export function encode_vitter(message) {
 		alpha[i] = i;
 		rep[i] = i;
 	}
+
+	const block = [];
 	// Create a single block for the 0-node which starts as node[n]
-	block[n] = 1; prevBlock[1] = 1; nextBlock[1] = 1; weight[1] = 0;
-	first[1] = n; last[1] = n; parity[1] = 0; parent[1] = 0;
-	let availBlock = 2;
-	for (let i = availBlock; i <= Z - 1; ++i) {
-		nextBlock[i] = i + 1;
-	}
-	nextBlock[Z] = 0;
+	const _firstBlock = {
+		weight: 0,
+		parity: 0,
+		parent: 0,
+		rtChild: 0, // This isn't usually initialized...
+		first: n,
+		last: n,
+		nextBlock: null,
+		prevBlock: null
+	};
+	_firstBlock.nextBlock = _firstBlock;
+	_firstBlock.prevBlock = _firstBlock;
+	block[n] = _firstBlock;
+
 	let root; // Root is set in EncodeAndTransmit
 
 	function FindChild(j, parity) {
-		let delta = 2 * (first[block[j]] - j) + 1 - parity;
-		let right = rtChild[block[j]], gap = right - last[block[right]];
+		const jb = block[j];
+		let delta = 2 * (jb.first - j) + 1 - parity;
+		let right = jb.rtChild, gap = right - block[right].last;
 		if (delta <= gap) return right - delta;
 		else {
 			delta = delta - gap - 1;
-			right = first[prevBlock[block[right]]]; gap = right-last[block[right]];
+			right = block[right].prevBlock.first; gap = right-block[right].last;
 			if (delta <= gap) return right - delta;
-			else return first[prevBlock[block[right]]] - delta + gap + 1;
+			else return block[right].prevBlock.first - delta + gap + 1;
 		}
 	}
 
@@ -64,11 +71,12 @@ export function encode_vitter(message) {
 		if (M == n) root = n; else root = Z;
 		// Traverse up the tree:
 		while (q != root) {
+			const bq = block[q];
 			if (block[q] == undefined) throw new Error();
 			i = i + 1;
-			if (first[block[q]] - q + parity[block[q]] < 0) debugger;
-			stack[i] = (first[block[q]] - q + parity[block[q]]) % 2;
-			q = parent[block[q]] - Math.trunc((first[block[q]] - q + 1 - parity[block[q]]) / 2);
+			if (bq.first - q + bq.parity < 0) debugger;
+			stack[i] = (bq.first - q + bq.parity) % 2;
+			q = bq.parent - Math.trunc((bq.first - q + 1 - bq.parity) / 2);
 		}
 		// Output the bits
 		for (let _ = i; _ >= 1; --_) {
@@ -107,116 +115,130 @@ export function encode_vitter(message) {
 					// New 0-node is node M; old 0-node is node m+1;
 					// new parent of nodes M and M + 1 is node M + n
 					block[M] = bq;
-					last[bq] = M;
-					oldParent = parent[bq];
-					parent[bq] = M + n;
-					parity[bq] = 1;
+					bq.last = M;
+					oldParent = bq.parent;
+					bq.parent = M + n;
+					bq.parity = 1;
 					// Create new internal block of zero weight for node M + n
-					b = availBlock; availBlock = nextBlock[availBlock];
-					prevBlock[b] = bq; nextBlock[b] = nextBlock[bq];
-					prevBlock[nextBlock[bq]] = b; nextBlock[bq] = b;
-					parent[b] = oldParent; parity[b] = 0; rtChild[b] = q;
-					block[M + n] = b; weight[b] = 0;
-					first[b] = M + n; last[b] = M + n;
+					b = {
+						weight: 0,
+						parity: 0,
+						parent: oldParent,
+						rtChild: q,
+						first: M + n,
+						last: M + n,
+						nextBlock: bq.nextBlock,
+						prevBlock: bq,
+					};
+					block[M + n] = b;
+					bq.nextBlock.prevBlock = b;
+					bq.nextBlock = b;
 					leafToIncrement = q; q = M + n;
 				}
 			} else {
 				// Interchange q with it's block-leader.
-				InterchangeLeaves(q, first[block[q]]);
-				q = first[block[q]];
+				InterchangeLeaves(q, block[q].first);
+				q = block[q].first;
 				if (q == M + 1 && M > 0) {
-					leafToIncrement = q; q = parent[block[q]];
+					leafToIncrement = q; q = block[q].parent;
 				}
 			}
 		}
 
 		function SlideAndIncrement() {
 			// q is currently the first node in its block (the block-leader)
-			bq = block[q]; nbq = nextBlock[bq];
-			let par = parent[bq]; oldParent = par; oldParity = parity[bq];
+			bq = block[q]; nbq = bq.nextBlock;
+			let par = bq.parent; oldParent = par; oldParity = bq.parity;
 
-			if ((q <= n && first[nbq] > n && weight[nbq] == weight[bq]) || (q > n && first[nbq] <= n && weight[nbq] == weight[bq] + 1)) {
+			if ((q <= n && nbq.first > n && nbq.weight == bq.weight) || (q > n && nbq.first <= n && nbq.weight == bq.weight + 1)) {
 				// Slide q over the next block
 				slide = true;
-				oldParent = parent[nbq]; oldParity = parity[nbq];
+				oldParent = nbq.parent; oldParity = nbq.parity;
 				// adjust child pointers for next-neigher level in tree
 				if (par > 0) {
 					let bpar = block[par];
-					if (rtChild[bpar] == q) {
-						rtChild[bpar] = last[nbq];
-					} else if (rtChild[bpar] == first[nbq]) {
-						rtChild[bpar] = q;
+					if (bpar.rtChild == q) {
+						bpar.rtChild = nbq.last;
+					} else if (bpar.rtChild == nbq.first) {
+						bpar.rtChild = q;
 					} else {
-						rtChild[bpar] = rtChild[bpar] + 1;
+						bpar.rtChild = bpar.rtChild + 1;
 					}
 					if (par != Z) {
 						if (block[par + 1] != bpar) {
-							if (rtChild[block[par + 1]] == first[nbq]) {
-								rtChild[block[par + 1]] = q;
-							} else if (block[rtChild[block[par + 1]]] == nbq) {
-								rtChild[block[par + 1]] = rtChild[block[par + 1]] + 1;
+							if (block[par + 1].rtChild == nbq.first) {
+								block[par + 1].rtChild = q;
+							} else if (block[block[par + 1].rtChild] == nbq) {
+								block[par + 1].rtChild = block[par + 1].rtChild + 1;
 							}
 						}
 					}
 				}
 				// Adjust parent pointers for block nbq
-				parent[nbq] = parent[nbq] -1 +parity[nbq]; parity[nbq] = 1 -parity[nbq];
-				nbq = nextBlock[nbq];
+				nbq.parent = nbq.parent -1 +nbq.parity; nbq.parity = 1 -nbq.parity;
+				nbq = nbq.nextBlock;
 			} else {
 				slide = false;
 			}
 
-			if ((q <= n && first[nbq] <= n) || (q > n && first[nbq] > n) && weight[nbq] == weight[bq] + 1) {
+			if ((q <= n && nbq.first <= n) || (q > n && nbq.first > n) && nbq.weight == bq.weight + 1) {
 				// Merge q into the block of weight one higher
 				if (nbq == 1) debugger;
-				block[q] = nbq; last[nbq] = q;
-				if (last[bq] = q) {
+				block[q] = nbq; nbq.last = q;
+				if (bq.last == q) {
 					// q's old block disappears
-					nextBlock[prevBlock[bq]] = nextBlock[bq];
-					prevBlock[nextBlock[bq]] = prevBlock[bq];
-					nextBlock[bq] = availBlock; availBlock = bq;
+					bq.prevBlock.nextBlock = bq.nextBlock;
+					bq.nextBlock.prevBlock = bq.prevBlock;
 				} else {
 					if (q > n) {
-						rtChild[bq] = FindChild(q - 1, 1);
+						bq.rtChild = FindChild(q - 1, 1);
 					}
-					if (parity[bq] == 0) {
-						parent[bq] = parent[bq] - 1;
+					if (bq.parity == 0) {
+						bq.parent = bq.parent - 1;
 					}
-					parity[bq] = 1 - parity[bq]; // Toggle the parity
-					first[bq] = q - 1;
+					bq.parity = 1 - bq.parity; // Toggle the parity
+					bq.first = q - 1;
 				}
-			} else if (last[bq] == q) {
+			} else if (bq.last == q) {
 				if (slide) {
 					// q's block slid forward in the block list
-					prevBlock[nextBlock[bq]] = prevBlock[bq];
-					nextBlock[prevBlock[bq]] = nextBlock[bq];
-					prevBlock[bq] = prevBlock[nbq]; nextBlock[bq] = nbq;
-					prevBlock[nbq] = bq; nextBlock[prevBlock[bq]] = bq;
-					parent[bq] = oldParent; parity[bq] = oldParity;
+					bq.nextBlock.prevBlock = bq.prevBlock;
+					bq.prevBlock.nextBlock = bq.nextBlock;
+					bq.prevBlock = nbq.prevBlock;
+					bq.nextBlock = nbq;
+					nbq.prevBlock = bq;
+					bq.prevBlock.nextBlock = bq;
+					bq.parent = oldParent;
+					bq.parity = oldParity;
 				}
-				weight[bq] = weight[bq] + 1;
+				bq.weight += 1;
 			} else {
 				// New block is created for q
-				b = availBlock; availBlock = nextBlock[availBlock];
-				if (b == 1) debugger;
-				block[q] = b; first[b] = q; last[b] = q;
+				b = {
+					weight: bq.weight + 1,
+					parity: oldParity,
+					parent: oldParent,
+					rtChild: 0,
+					first: q,
+					last: q,
+					nextBlock: nbq,
+					prevBlock: nbq.prevBlock
+				};
+				block[q] = b;
 				if (q > n) {
-					rtChild[b] = rtChild[bq];
-					rtChild[bq] = FindChild(q - 1, 1);
-					if (rtChild[b] == q - 1) {
-						parent[bq] = q;
-					} else if (parity[bq] = 0) {
-						parent[bq] = parent[bq] - 1;
+					b.rtChild = bq.rtChild;
+					bq.rtChild = FindChild(q - 1, 1);
+					if (b.rtChild == q - 1) {
+						bq.parent = q;
+					} else if (bq.parity == 0) {
+						bq.parent = bq.parent - 1;
 					}
-				} else if (parity[bq] == 0) {
-					parent[bq] = parent[bq] - 1;
+				} else if (bq.parity == 0) {
+					bq.parent = bq.parent - 1;
 				}
-				first[bq] = q - 1; parity[bq] = 1 - parity[bq];
+				bq.first = q - 1; bq.parity = 1 - bq.parity;
 				// Insert q's block in its proper place in the block list
-				prevBlock[b] = prevBlock[nbq]; nextBlock[b] = nbq;
-				prevBlock[nbq] = b; nextBlock[prevBlock[b]] = b;
-				weight[b] = weight[bq] + 1;
-				parent[b] = oldParent; parity[b] = oldParity;
+				nbq.prevBlock = b; b.prevBlock.nextBlock = b;
 			}
 			// Move q one level higher in the tree
 			if (q <= n) {
